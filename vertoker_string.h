@@ -6,8 +6,10 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include <iostream> // нужна только для переопределения оператора << для ostream
+
 // тупой способ тестирования работоспособности строки через макросы
-#define USE_TEST_LOG 1
+#define USE_TEST_LOG 0
 
 namespace vertoker { // ну раз это моя реализация, значит и namespace будет мой
 class string {
@@ -44,34 +46,23 @@ public: // constructors and destructors
         other.ptr = nullptr;
     }
     
-    string(const char* str1, const char* str2) { // merge 1
+    string(const char* str1, const char* str2) { // merge
         if (str1 == nullptr || *str1 == '\0') {
-            TEST_LOG("Operator += other empty\n");
+            TEST_LOG("+ constructor other empty\n");
             return;
         }
         else if (str2 == nullptr || *str2 == '\n') {
-            TEST_LOG("Operator += other copy\n");
+            TEST_LOG("+ constructor other copy\n");
             return;
         }
         else {
-            TEST_LOG("Operator +=\n");
+            TEST_LOG("+ constructor\n");
             merge(str1, str2);
         }
     }
-    string(const string& str1, const string& str2) { // merge 2
-        if (str1.ptr == nullptr || *str1.ptr == '\0') {
-            TEST_LOG("Operator += other empty\n");
-            return;
-        }
-        else if (str2.ptr == nullptr || *str2.ptr == '\n') {
-            TEST_LOG("Operator += other copy\n");
-            return;
-        }
-        else {
-            TEST_LOG("Operator +=\n");
-            merge(str1.ptr, str2.ptr);
-        }
-    }
+
+    string(const string& a, const string& b) // merge 2
+        : string{a.c_ptr(), b.c_ptr()} { } 
 
     ~string() {
         TEST_LOG("Free deconstructor\n");
@@ -98,35 +89,18 @@ public: // operators
         this->operator+=(other.ptr);
     }
 
-    static string operator+(const char* str1, const char* str2) {
-        string result{str1, str2};
-        return result;
-    }
-    static string operator+(const string& str1, const char* str2) {
-        string result{str1.ptr, str2};
-        return result;
-    }
-    static string operator+(const char* str1, const string& str2) {
-        string result{str1, str2.ptr};
-        return result;
-    }
-    static string operator+(const string& str1, const string& str2) {
-        string result{str1, str2};
-        return result;
-    }
-
 public: // other
-    char* c_ptr() { return ptr; }
+    char* c_ptr() const { return ptr; }
 
 private:
-    void copy(const char* dst) {
+    void copy(const char* dst) noexcept {
         size_t length = strlen(dst);
         ptr = (char*)malloc(length + 1);
 
         strcpy(ptr, dst);
         ptr[length] = '\0';
     }
-    void append(const char* dst) {
+    void append(const char* dst) noexcept {
         size_t length1 = strlen(ptr);
         size_t length = length1 + strlen(dst);
 
@@ -136,8 +110,10 @@ private:
         strcpy(ptr1, ptr);
         strcpy(ptr2, dst);
         ptr1[length] = '\0';
+
+        ptr = ptr1;
     }
-    void merge(const char* str1, const char* str2) {
+    void merge(const char* str1, const char* str2) noexcept {
         size_t length1 = strlen(str1);
         size_t length = length1 + strlen(str2);
 
@@ -151,4 +127,16 @@ private:
 
     char* ptr; // главный указатель
 }; // string
+
+vertoker::string operator+(const vertoker::string& a, const vertoker::string& b) {
+    return vertoker::string{a, b};
+}
+
+std::ostream& operator<<(std::ostream& os, const vertoker::string& str) {
+    auto ptr = str.c_ptr();
+    if (ptr != nullptr)
+        os << ptr;
+    return os;
+}
+
 } // vertoker

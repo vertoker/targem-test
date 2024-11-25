@@ -11,7 +11,7 @@ rem И мне больше нравиться sh чем bat
 md %BUILD_PATH%
 
 rem Обычно я использую clang++, но тут g++ чтобы у вас запустилось
-g++ main.cpp string.hpp --output=%EXE_PATH% --std=c++11 -O3
+g++ main.cpp vertoker_string.h --output=%EXE_PATH% --std=c++11 -O3
 build\executable.exe
 
 @echo on
