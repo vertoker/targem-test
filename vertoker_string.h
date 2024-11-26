@@ -6,10 +6,10 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include <iostream> // нужна для переопределения операторов << и >>
+#include <iostream> // нужен только для переопределения операторов << и >>
 
 // тупой способ тестирования работоспособности строки через макросы
-#define USE_TEST_LOG 1
+#define USE_TEST_LOG 0
 
 namespace vertoker { // ну раз это моя реализация, значит и namespace будет мой
 class string {
@@ -66,7 +66,7 @@ public: // constructors and destructors
     }
 
     string(const string& a, const string& b) // merge 2
-        : string{a.c_ptr(), b.c_ptr()} { } 
+        : string{a.data(), b.data()} { } 
 
     ~string() {
         TEST_LOG("Free destructor\n");
@@ -75,17 +75,46 @@ public: // constructors and destructors
 
 public: // operators
 
+    // Да эти операторы= копируют функционал конструкторов, зато нету лишних копирований
+    void operator=(const char* str) {
+        if (ptr != nullptr) {
+            if (str != nullptr) {
+                TEST_LOG("Operator= copy other\n");
+                free(ptr); // TODO можно сделать оптимизацию
+                copy(str);
+            }
+            else {
+                TEST_LOG("Operator= free ptr\n");
+                free(ptr);
+            }
+        }
+        else {
+            if (str != nullptr) {
+                TEST_LOG("Operator= copy other\n");
+                copy(str);
+            }
+        }
+    }
+    void operator=(const string& other) {
+        this->operator=(other.ptr);
+    }
+    void operator=(string&& other) {
+        TEST_LOG("Operator= move other\n");
+        ptr = other.ptr;
+        other.ptr = nullptr;
+    }
+
     void operator+=(const char* str) {
         if (str == nullptr || *str == '\0') {
-            TEST_LOG("Operator += other empty\n");
+            TEST_LOG("Operator+= other empty\n");
             return;
         }
         else if (ptr == nullptr || *ptr == '\n') {
-            TEST_LOG("Operator += other copy\n");
+            TEST_LOG("Operator+= other copy\n");
             copy(str);
         }
         else {
-            TEST_LOG("Operator +=\n");
+            TEST_LOG("Operator+=\n");
             append(str);
         }
     }
@@ -94,10 +123,28 @@ public: // operators
     }
 
 public: // other
-    constexpr char* c_ptr() const { return ptr; }
-    constexpr size_t length() const {
+    constexpr char* data() const noexcept { return ptr; }
+
+    constexpr size_t length() const noexcept {
         assert(ptr != nullptr && "ptr can't be nullptr");
         return strlen(ptr);
+    }
+
+    inline char& front() const noexcept {
+        assert(ptr != nullptr && "ptr can't be nullptr");
+        assert(*ptr != '\0' && "ptr must have any character");
+        return ptr[0];
+    }
+    inline char& back() const noexcept {
+        assert(ptr != nullptr && "ptr can't be nullptr");
+        assert(*ptr != '\0' && "ptr must have any character");
+        return ptr[strlen(ptr)];
+    }
+    inline char& at(const size_t index) const noexcept {
+        assert(ptr != nullptr && "ptr can't be nullptr");
+        assert(*ptr != '\0' && "ptr must have any character");
+        assert(index < strlen(ptr) && "index out of range");
+        return ptr[index];
     }
 
 private:
@@ -152,13 +199,13 @@ vertoker::string operator+(const vertoker::string& a, const vertoker::string& b)
 // честно не знаю стоит ли тут ставить assert на nullptr, пока оставлю так
 
 std::ostream& operator<<(std::ostream& os, const vertoker::string& str) {
-    auto ptr = str.c_ptr();
+    auto ptr = str.data();
     if (ptr != nullptr)
         os << ptr;
     return os;
 }
 std::istream& operator>>(std::istream& is, vertoker::string& str) {
-    auto ptr = str.c_ptr();
+    auto ptr = str.data();
     if (ptr != nullptr) {
         auto length = str.length();
         is >> ptr; // TODO небезопасно, всё взорвётся
